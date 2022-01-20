@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script>
+        (function(app){
+            app.hashData = fetch("./requirejscachebust.json")
+            .then(
+                response => response.json()
+            )
+            .then(
+                data => {
+                    console.log(data)
+                    app.fileHashes = data;
+                }
+            );
+        })(window.app = window.app || {});
+    </script>
+    <script data-main="src/scripts/main" src="node_modules/requirejs/require.js"></script>
+    <script src="src/scripts/index.js"></script>
+</head>
+<body>
+    
+</body>
+</html>

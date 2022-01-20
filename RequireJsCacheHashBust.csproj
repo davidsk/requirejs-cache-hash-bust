@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <!-- get a list of items (files) that we want to generate a hash for -->
+  <ItemGroup>
+    
+    <!-- specify the output file so that we can definitely exclude it -->
+    <FileHashOutputFile Include="$(MSBuildThisFileDirectory)\requirejscachebust.json" />
+    
+    <FilesToHash Include="$(MSBuildThisFileDirectory)\src\scripts\**\*.js" Exclude="@(FileHashOutputFile)">
+      <!-- the GetFileHash task clears the RecursiveDir property for some reason, so capture the value as custom metadata -->
+      <CustomRecursiveDir>%(RecursiveDir)</CustomRecursiveDir>
+    </FilesToHash>
+
+  </ItemGroup>
+  
+  <!-- use the native GetFileHash task to generate a hash for each of the files -->
+  <Target Name="CalculateRequiredFileHashes">
+    
+    <Message Importance="High" Text="CalculateRequiredFileHashes" />
+    
+    <GetFileHash Files="@(FilesToHash)">
+      <Output
+          TaskParameter="Items"
+          ItemName="FilesWithHashes" />
+    </GetFileHash>
+
+  </Target>
+
+  <!-- The Outputs attribute will call this target per 'batch' based on the value; using the identity value defines a batch per item -->
+  <Target Name="EscapeValues" AfterTargets="CalculateRequiredFileHashes" Outputs="'%(FilesWithHashes.Identity)">
+  
+    <Message Importance="High" Text="EscapeValues" />
+    <Message Importance="High" Text="%(FilesWithHashes.CustomRecursiveDir)" />
+
+    <!-- Drop the item metadata into a property and then use the property functions to modify it-->
+    <PropertyGroup>
+      <TempValue>%(FilesWithHashes.CustomRecursiveDir)</TempValue>
+      <TempValue>$(TempValue.Replace('\','/'))</TempValue>
+    </PropertyGroup>
+  
+    <Message Importance="High" Text="TempValue = $(TempValue)" />
+
+    <!-- Write the modified value back into the item -->
+    <ItemGroup>
+      <FilesWithHashes> <!-- this item group represents the items in the batch e.g. a single item -->
+        <CustomRecursiveDir>$(TempValue)</CustomRecursiveDir>
+      </FilesWithHashes>
+    </ItemGroup>
+  </Target>
+
+  <!-- write the item values into a file -->
+  <Target Name="WriteJsonFile" AfterTargets="EscapeValues">
+    
+    <Message Importance="High" Text="WriteJsonFile" />
+    
+    <PropertyGroup>
+      <JsonContents>{@(FilesWithHashes->'&quot;%(CustomRecursiveDir)%(FileName)%(Extension)&quot;: &quot;%(FileHash)&quot;', ',')}</JsonContents>
+      <!-- <JsonContents>$(JsonContents.Replace(',}', '}'))</JsonContents> -->
+    </PropertyGroup>
+    
+    <WriteLinesToFile File="requirejscachebust.json"
+        Overwrite="True"
+        Lines="$(JsonContents)">
+    </WriteLinesToFile>
+
+  </Target>
+  
+</Project>
